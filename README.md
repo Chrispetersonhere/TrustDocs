@@ -101,6 +101,15 @@ pnpm build:client
 pnpm start          # prints the editor + replay URLs
 ```
 
+**Windows (PowerShell)** — one command does install + build + run:
+
+```powershell
+./scripts/windows/dev.ps1                 # in-memory (no DB)
+./scripts/windows/dev.ps1 -Docker         # full stack via Docker
+./scripts/windows/dev.ps1 -Postgres "postgres://scriptorium:scriptorium@localhost:5432/scriptorium"
+./scripts/windows/dev.ps1 -Test           # typecheck + tests, then exit
+```
+
 Without `DATABASE_URL` the server uses an in-memory store: the integrity model is
 identical, only durability differs (data is lost on restart). Set `DATABASE_URL` to
 persist to Postgres, which is the authoritative deployment.
