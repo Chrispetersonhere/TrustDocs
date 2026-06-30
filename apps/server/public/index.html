@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scriptorium — Write</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/assets/editor.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Scriptorium</div>
+      <div id="context" class="context"></div>
+      <div id="status" class="status" data-kind="ok">Loading…</div>
+      <nav><a id="replay-link" href="#">Open replay →</a></nav>
+    </header>
+
+    <main class="editor-shell">
+      <p class="note">
+        Every edit you make is sent to the server as it happens. The server — not this
+        browser — is the record of how this document was written. There is no “upload a
+        file” path: the only document that exists is the one rebuilt from your edits.
+      </p>
+      <div id="editor" class="editor"></div>
+    </main>
+
+    <script type="module" src="/assets/editor.js"></script>
+  </body>
+</html>

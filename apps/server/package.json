@@ -1,0 +1,33 @@
+{
+  "name": "@scriptorium/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Express app: the collab authority HTTP surface, replay, evidence, hash-chain verification, and the exportable self-verifying bundle.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build:client": "node esbuild.mjs"
+  },
+  "dependencies": {
+    "@scriptorium/core": "workspace:*",
+    "@scriptorium/schema": "workspace:*",
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "prosemirror-collab": "^1.3.1",
+    "pg": "^8.13.1",
+    "prosemirror-commands": "^1.6.2",
+    "prosemirror-example-setup": "^1.2.3",
+    "prosemirror-history": "^1.4.1",
+    "prosemirror-keymap": "^1.2.2",
+    "prosemirror-menu": "^1.2.4",
+    "prosemirror-model": "^1.24.1",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-transform": "^1.10.2",
+    "prosemirror-view": "^1.37.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6"
+  }
+}

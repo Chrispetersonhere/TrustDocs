@@ -1,0 +1,35 @@
+# Scriptorium self-host stack: the app + Postgres (build spec §5).
+# Bring it up with:  docker compose up --build
+# Then open:         http://localhost:3000/?session=00000000-0000-0000-0000-000000000001
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: scriptorium
+      POSTGRES_PASSWORD: scriptorium
+      POSTGRES_DB: scriptorium
+    volumes:
+      - scriptorium-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U scriptorium']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - '5432:5432'
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://scriptorium:scriptorium@db:5432/scriptorium
+      PORT: '3000'
+      # Destructive hard-delete is OFF unless you opt in (build spec §9).
+      ALLOW_HARD_DELETE: 'false'
+    ports:
+      - '3000:3000'
+
+volumes:
+  scriptorium-db:
