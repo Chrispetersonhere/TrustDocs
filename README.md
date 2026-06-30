@@ -168,7 +168,7 @@ deployment can use either or both.
 - **M1 Vertical slice** (the first hard deliverable) — eager collab capture, server authority, hash-chained append-only log, replay. ✅
 - **M2 Identity & assignments** — real instructor accounts + roles, per-student/per-assignment capability links, unforgeably-bound writing sessions, instructor dashboard. ✅
 - **LTI 1.3 Advantage** (originally a v1 non-goal; built on request) — OIDC login, signed-launch identity/role/context provisioning, tool JWKS, NRPS roster sync, deny-by-default coexistence with local accounts. ✅
-- **M3 (server-side evidence)** — large-insertion timeline (server-derived + clearly-labeled client-asserted) and receipt-based active time. ✅
+- **M3 Evidence & replay UX** — polished replay: play/pause walkthrough, dual scrubbing (by version and by receipt time), an interactive timeline (server-derived large-insertion markers, clearly-labeled untrusted paste annotations, working-session bands), in-context highlighting of what each step changed, and a per-session active-time breakdown. Nowhere does the UI assert a judgment, score, or flag. ✅
 - **M4 Integrity & privacy** — verification endpoint + CLI, tamper test (incl. DB-level), append-only DB trigger, retention + hard-delete, self-verifying export bundle, deploy docs. ✅
 
 Every constraint in the Definition of Done that these milestones cover is enforced by a

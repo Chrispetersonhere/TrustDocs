@@ -21,14 +21,30 @@
         judgment about how the document was written — a human reads the shape.
       </p>
 
-      <div class="scrubber-row">
-        <label for="scrubber">Replay position</label>
-        <input id="scrubber" type="range" min="0" max="0" value="0" step="1" />
+      <div class="replay-toolbar">
+        <button id="play" type="button">▶ Play</button>
+        <label class="ctl">Speed
+          <select id="speed">
+            <option value="900">0.5×</option>
+            <option value="450" selected>1×</option>
+            <option value="180">2.5×</option>
+            <option value="60">8×</option>
+          </select>
+        </label>
+        <span class="seg" role="radiogroup" aria-label="Scrub mode">
+          <label><input type="radio" name="mode" value="version" checked /> by version</label>
+          <label><input type="radio" name="mode" value="time" /> by receipt time</label>
+        </span>
+        <span id="position-readout" class="meta"></span>
       </div>
+
+      <input id="scrubber" type="range" min="0" max="0" value="0" step="1" />
+      <div id="timeline" class="timeline" title="Click to jump. Markers: large insertions and client-claimed pastes; shaded bands are working sessions."></div>
       <div id="replay-meta" class="meta"></div>
+      <div id="step-readout" class="step-readout"></div>
 
       <div class="replay-cols">
-        <section id="replay-doc" class="replay-doc ProseMirror"></section>
+        <section id="replay-doc" class="replay-doc"></section>
         <aside id="evidence" class="evidence"></aside>
       </div>
 
@@ -39,8 +55,6 @@
 
     <script type="module" src="/assets/replay.js"></script>
     <script type="module">
-      // The bundle link and the back-to-editor link are wired by replay.js once
-      // the session id is known (from a student token or an instructor session URL).
       const p = new URLSearchParams(location.search);
       const t = p.get('token');
       const editLink = document.getElementById('edit-link');

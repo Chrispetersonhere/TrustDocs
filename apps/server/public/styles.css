@@ -248,6 +248,119 @@ table.students input.link {
   color: var(--muted);
 }
 
+/* --- replay polish (M3) --- */
+.replay-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 0.5rem;
+}
+.replay-toolbar .ctl,
+.replay-toolbar .seg {
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.replay-toolbar .seg label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+#play {
+  min-width: 5.5rem;
+}
+
+.timeline {
+  position: relative;
+  height: 44px;
+  margin: 0.25rem 0 0.5rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.tl-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+.tl-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(37, 99, 235, 0.07);
+  border-left: 1px solid rgba(37, 99, 235, 0.18);
+  border-right: 1px solid rgba(37, 99, 235, 0.18);
+}
+.tl-mark {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #9ca3af;
+  cursor: pointer;
+}
+.tl-mark:hover {
+  background: var(--accent);
+  transform: scale(1.4);
+}
+.tl-mark.tl-large {
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  background: #b91c1c; /* server-derived large insertion */
+}
+.tl-mark.tl-paste {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: transparent;
+  border: 2px dashed #b45309; /* client-claimed (untrusted) */
+}
+.tl-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.step-readout {
+  font-size: 0.82rem;
+  color: var(--muted);
+  min-height: 1.2em;
+  margin-bottom: 0.5rem;
+}
+
+/* What changed at the current replay step. */
+.replay-doc .changed {
+  background: #fef08a;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #fde047;
+}
+
+.evidence ol {
+  margin: 0.25rem 0;
+  padding-left: 1.2rem;
+  font-size: 0.82rem;
+}
+.evidence a {
+  cursor: pointer;
+}
+
 @media (max-width: 720px) {
   .replay-cols {
     grid-template-columns: 1fr;
