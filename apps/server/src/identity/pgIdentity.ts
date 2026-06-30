@@ -21,6 +21,9 @@ function rowToAssignment(r: any): Assignment {
     title: r.title,
     created_at: new Date(r.created_at).toISOString(),
     retention_days: r.retention_days ?? null,
+    lti_platform_id: r.lti_platform_id ?? null,
+    lti_resource_link_id: r.lti_resource_link_id ?? null,
+    lti_nrps_url: r.lti_nrps_url ?? null,
   };
 }
 
@@ -91,11 +94,21 @@ export class PgIdentityStore implements IdentityStore {
     instructor_id: string;
     title: string;
     retention_days: number | null;
+    lti_platform_id?: string | null;
+    lti_resource_link_id?: string | null;
+    lti_nrps_url?: string | null;
   }): Promise<Assignment> {
     const { rows } = await this.pool.query(
-      `INSERT INTO assignments (instructor_id, title, retention_days)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [input.instructor_id, input.title, input.retention_days],
+      `INSERT INTO assignments (instructor_id, title, retention_days, lti_platform_id, lti_resource_link_id, lti_nrps_url)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        input.instructor_id,
+        input.title,
+        input.retention_days,
+        input.lti_platform_id ?? null,
+        input.lti_resource_link_id ?? null,
+        input.lti_nrps_url ?? null,
+      ],
     );
     return rowToAssignment(rows[0]);
   }
@@ -111,6 +124,31 @@ export class PgIdentityStore implements IdentityStore {
       [instructorId],
     );
     return rows.map(rowToAssignment);
+  }
+
+  async getAssignmentByResourceLink(
+    platformId: string,
+    resourceLinkId: string,
+  ): Promise<Assignment | null> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM assignments WHERE lti_platform_id = $1 AND lti_resource_link_id = $2',
+      [platformId, resourceLinkId],
+    );
+    return rows[0] ? rowToAssignment(rows[0]) : null;
+  }
+
+  async transferAssignmentOwner(assignmentId: string, instructorId: string): Promise<void> {
+    await this.pool.query('UPDATE assignments SET instructor_id = $1 WHERE id = $2', [
+      instructorId,
+      assignmentId,
+    ]);
+  }
+
+  async setAssignmentNrpsUrl(assignmentId: string, url: string): Promise<void> {
+    await this.pool.query('UPDATE assignments SET lti_nrps_url = $1 WHERE id = $2', [
+      url,
+      assignmentId,
+    ]);
   }
 
   async mintToken(assignmentId: string, studentId: string): Promise<AssignmentToken> {

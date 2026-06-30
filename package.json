@@ -15,6 +15,7 @@
     "migrate": "tsx apps/server/src/db/migrate.ts",
     "verify": "tsx apps/server/src/cli/verify.ts",
     "retention": "tsx apps/server/src/cli/retention.ts",
+    "lti": "tsx apps/server/src/cli/lti.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test packages/core/test/*.test.ts apps/server/test/*.test.ts",
     "lint": "tsc -p tsconfig.json --noEmit"

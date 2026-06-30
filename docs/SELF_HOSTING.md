@@ -130,6 +130,8 @@ Students are identified by their per-assignment capability link, which binds a
 unique constraint guarantees two students cannot collide. See
 [THREAT_MODEL.md](THREAT_MODEL.md) for the rationale behind the capability-link design.
 
-Still ahead (out of v1 scope): LTI 1.3 / Canvas roster sync (the eventual path for
-institutional identity), and student password accounts if a durable cross-assignment
-student login is ever wanted.
+**LTI 1.3 / LMS launch** is also supported (Canvas, Moodle, …) as the strong
+institutional-identity path — see [LTI.md](LTI.md). It coexists with local accounts.
+
+Still ahead (optional): student password accounts, if a durable cross-assignment student
+login outside an LMS is ever wanted.

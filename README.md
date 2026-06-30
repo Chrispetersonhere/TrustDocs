@@ -130,6 +130,7 @@ pnpm migrate                   # apply DB migrations (needs DATABASE_URL)
 pnpm verify --bundle f.json    # re-verify an exported evidence bundle OFFLINE
 pnpm verify --session <id>     # verify a live session from the DB
 pnpm retention [--apply]       # purge sessions past their retention window
+pnpm lti keygen|register|list  # LTI 1.3 tool key + platform registration (needs DB)
 ```
 
 ## Identity model (M2)
@@ -148,11 +149,25 @@ The instructor **dashboard** (`/dashboard.html`) lists assignments and, per assi
 each enrolled student with their link and live submission stats (version, edit count,
 chain-intact status, and a link to the replay).
 
+### LTI 1.3 (the strong identity path)
+
+Scriptorium can also be launched from an LMS (Canvas, Moodle, …) as an **LTI 1.3
+Advantage** tool. Here identity is even stronger: a **platform-signed launch JWT** vouches
+for who the user is, their role, and which course/assignment they opened — verified
+against the platform's JWKS, never asserted by the client. A student who launches is
+provisioned and signed in automatically, with their session bound to their LMS identity;
+instructors land on the dashboard. **NRPS roster sync** pulls the course roster via the
+LTI Advantage client-credentials flow. The tool exposes `/lti/login`, `/lti/launch`, and
+`/lti/jwks`; register a platform with `pnpm lti register …`. Full setup and the security
+model are in **[docs/LTI.md](docs/LTI.md)**. LTI coexists with local accounts — a
+deployment can use either or both.
+
 ## Status against the milestones
 
 - **M0 Scaffold** — monorepo, shared schema, Docker Compose, migrations, CI, health check. ✅
 - **M1 Vertical slice** (the first hard deliverable) — eager collab capture, server authority, hash-chained append-only log, replay. ✅
 - **M2 Identity & assignments** — real instructor accounts + roles, per-student/per-assignment capability links, unforgeably-bound writing sessions, instructor dashboard. ✅
+- **LTI 1.3 Advantage** (originally a v1 non-goal; built on request) — OIDC login, signed-launch identity/role/context provisioning, tool JWKS, NRPS roster sync, deny-by-default coexistence with local accounts. ✅
 - **M3 (server-side evidence)** — large-insertion timeline (server-derived + clearly-labeled client-asserted) and receipt-based active time. ✅
 - **M4 Integrity & privacy** — verification endpoint + CLI, tamper test (incl. DB-level), append-only DB trigger, retention + hard-delete, self-verifying export bundle, deploy docs. ✅
 

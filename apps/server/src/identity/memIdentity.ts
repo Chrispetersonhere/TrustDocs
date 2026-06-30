@@ -79,6 +79,9 @@ export class InMemoryIdentityStore implements IdentityStore {
     instructor_id: string;
     title: string;
     retention_days: number | null;
+    lti_platform_id?: string | null;
+    lti_resource_link_id?: string | null;
+    lti_nrps_url?: string | null;
   }): Promise<Assignment> {
     const a: Assignment = {
       id: randomUUID(),
@@ -86,6 +89,9 @@ export class InMemoryIdentityStore implements IdentityStore {
       title: input.title,
       created_at: new Date().toISOString(),
       retention_days: input.retention_days,
+      lti_platform_id: input.lti_platform_id ?? null,
+      lti_resource_link_id: input.lti_resource_link_id ?? null,
+      lti_nrps_url: input.lti_nrps_url ?? null,
     };
     this.assignments.set(a.id, a);
     return a;
@@ -99,6 +105,27 @@ export class InMemoryIdentityStore implements IdentityStore {
     return [...this.assignments.values()]
       .filter((a) => a.instructor_id === instructorId)
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+
+  async getAssignmentByResourceLink(
+    platformId: string,
+    resourceLinkId: string,
+  ): Promise<Assignment | null> {
+    return (
+      [...this.assignments.values()].find(
+        (a) => a.lti_platform_id === platformId && a.lti_resource_link_id === resourceLinkId,
+      ) ?? null
+    );
+  }
+
+  async transferAssignmentOwner(assignmentId: string, instructorId: string): Promise<void> {
+    const a = this.assignments.get(assignmentId);
+    if (a) a.instructor_id = instructorId;
+  }
+
+  async setAssignmentNrpsUrl(assignmentId: string, url: string): Promise<void> {
+    const a = this.assignments.get(assignmentId);
+    if (a) a.lti_nrps_url = url;
   }
 
   async mintToken(assignmentId: string, studentId: string): Promise<AssignmentToken> {

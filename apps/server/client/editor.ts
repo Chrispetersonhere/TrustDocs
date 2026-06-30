@@ -22,7 +22,8 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { schema } from '@scriptorium/schema';
 
 const params = new URLSearchParams(location.search);
-const token = params.get('token');
+const token = params.get('token'); // capability-link (non-LTI) students
+const sessionParam = params.get('session'); // cookie-authenticated (e.g. LTI) students
 const clientID = Math.floor(Math.random() * 0xffffffff);
 
 const statusEl = document.getElementById('status')!;
@@ -45,45 +46,57 @@ const pastePlugin = new Plugin({
 });
 
 function authHeaders(): Record<string, string> {
-  return { 'content-type': 'application/json', authorization: `Bearer ${token}` };
+  const h: Record<string, string> = { 'content-type': 'application/json' };
+  if (token) h.authorization = `Bearer ${token}`;
+  return h;
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { headers: authHeaders(), ...init });
+  const res = await fetch(path, { headers: authHeaders(), credentials: 'same-origin', ...init });
   if (!res.ok && res.status !== 409) throw new Error(`${path} -> ${res.status}`);
   return (await res.json()) as T;
 }
 
 async function start() {
-  if (!token) {
-    setStatus('This editor opens from your per-assignment link (…/?token=…).', 'err');
+  let sessionId: string;
+  let initialVersion: number;
+  let initialDocJson: unknown;
+  const replayLink = document.getElementById('replay-link') as HTMLAnchorElement | null;
+
+  if (token) {
+    // Exchange the capability token for the bound writing session.
+    const redeemed = await api<{
+      sessionId: string;
+      assignmentTitle: string;
+      studentEmail: string;
+      version: number;
+      doc: unknown;
+    }>('/api/session', { method: 'POST', body: JSON.stringify({ token }) });
+    sessionId = redeemed.sessionId;
+    initialVersion = redeemed.version;
+    initialDocJson = redeemed.doc;
+    if (ctxEl) ctxEl.textContent = `${redeemed.assignmentTitle} · ${redeemed.studentEmail}`;
+    if (replayLink) replayLink.href = `/replay.html?token=${token}`;
+  } else if (sessionParam) {
+    // Cookie-authenticated student (e.g. arrived via an LTI launch).
+    sessionId = sessionParam;
+    const d = await api<{ version: number; doc: unknown }>(`/api/sessions/${sessionId}/doc`);
+    initialVersion = d.version;
+    initialDocJson = d.doc;
+    if (replayLink) replayLink.href = `/replay.html?session=${sessionId}`;
+  } else {
+    setStatus('Open this editor from your assignment link or LMS launch.', 'err');
     return;
   }
 
-  // Exchange the capability token for the bound writing session.
-  const redeemed = await api<{
-    sessionId: string;
-    assignmentTitle: string;
-    studentEmail: string;
-    version: number;
-    doc: unknown;
-  }>('/api/session', { method: 'POST', body: JSON.stringify({ token }) });
-
-  const sessionId = redeemed.sessionId;
-  if (ctxEl) {
-    ctxEl.textContent = `${redeemed.assignmentTitle} · ${redeemed.studentEmail}`;
-  }
-  const replayLink = document.getElementById('replay-link') as HTMLAnchorElement | null;
-  if (replayLink) replayLink.href = `/replay.html?token=${token}`;
-
-  const doc = PMNode.fromJSON(schema, redeemed.doc as object);
+  const doc = PMNode.fromJSON(schema, initialDocJson as object);
   let inFlight = false;
 
   const state = EditorState.create({
     doc,
     plugins: [
       ...exampleSetup({ schema, history: false }),
-      collab({ version: redeemed.version, clientID }),
+      collab({ version: initialVersion, clientID }),
       pastePlugin,
     ],
   });

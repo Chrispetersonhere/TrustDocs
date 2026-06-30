@@ -13,6 +13,8 @@ import { hasDatabase } from './db/pool.js';
 import { InMemoryIdentityStore } from './identity/memIdentity.js';
 import type { IdentityStore } from './identity/types.js';
 import { hashPassword } from './auth/password.js';
+import { InMemoryLtiStore, type LtiStore } from './lti/store.js';
+import { LtiService } from './lti/service.js';
 
 export const DEMO_INSTRUCTOR = { email: 'instructor@example.com', password: 'demo-password-123' };
 export const DEMO_STUDENT_EMAIL = 'student@example.com';
@@ -22,6 +24,8 @@ export interface BuiltApp {
   store: Store;
   identity: IdentityStore;
   service: WritingService;
+  ltiStore: LtiStore;
+  ltiService: LtiService;
   mode: 'postgres' | 'memory';
   demo: { instructorEmail: string; instructorPassword: string; studentLink: string | null };
 }
@@ -64,6 +68,7 @@ export async function buildApp(): Promise<BuiltApp> {
 
   let store: Store;
   let identity: IdentityStore;
+  let ltiStore: LtiStore;
   let mode: 'postgres' | 'memory';
 
   if (hasDatabase()) {
@@ -71,23 +76,34 @@ export async function buildApp(): Promise<BuiltApp> {
     await migrate();
     const { PgStore } = await import('./db/pgStore.js');
     const { PgIdentityStore } = await import('./identity/pgIdentity.js');
+    const { PgLtiStore } = await import('./lti/pgStore.js');
     store = new PgStore();
     identity = new PgIdentityStore();
+    ltiStore = new PgLtiStore();
     mode = 'postgres';
   } else {
     store = new InMemoryStore();
     identity = new InMemoryIdentityStore();
+    ltiStore = new InMemoryLtiStore();
     mode = 'memory';
   }
 
   const { studentLink } = await seedDemo(identity);
   const service = new WritingService(store);
 
+  // The public origin platforms redirect back to (the tool's launch/jwks URLs).
+  const toolBaseUrl =
+    process.env.PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
+  const ltiService = new LtiService(ltiStore, identity, { toolBaseUrl });
+  await ltiService.ensureToolKey();
+
   return {
-    app: createApp({ store, identity, service, allowHardDelete }),
+    app: createApp({ store, identity, service, lti: { ltiService, ltiStore }, allowHardDelete }),
     store,
     identity,
     service,
+    ltiStore,
+    ltiService,
     mode,
     demo: {
       instructorEmail: DEMO_INSTRUCTOR.email,

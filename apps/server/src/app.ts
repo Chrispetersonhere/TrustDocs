@@ -33,6 +33,7 @@ import {
   setSessionCookie,
 } from './auth/middleware.js';
 import { hashPassword, randomToken, verifyPassword } from './auth/password.js';
+import { ltiRouter, type LtiDeps } from './lti/routes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, '..', 'public');
@@ -41,6 +42,8 @@ export interface AppDeps {
   store: Store;
   identity: IdentityStore;
   service: WritingService;
+  /** Optional LTI 1.3 deps; when present the /lti endpoints are mounted. */
+  lti?: Pick<LtiDeps, 'ltiService' | 'ltiStore'>;
   allowHardDelete?: boolean;
   idleThresholdMs?: number;
   sessionGapMs?: number;
@@ -230,8 +233,10 @@ export function createApp(deps: AppDeps): Express {
       }
       const tokens = await identity.listTokensByAssignment(assignment.id);
       const sessions = await store.listSessions(assignment.id);
-      const sessionByAuthor = new Map(sessions.map((s) => [s.author_id, s]));
+      const tokenStudentIds = new Set(tokens.map((t) => t.student_id));
 
+      // Local (capability-link) students, with their link and submission stats.
+      const sessionByAuthor = new Map(sessions.map((s) => [s.author_id, s]));
       const students = await Promise.all(
         tokens.map(async (t) => {
           const session = sessionByAuthor.get(t.student_id);
@@ -243,7 +248,24 @@ export function createApp(deps: AppDeps): Express {
           };
         }),
       );
-      res.json({ assignment, students });
+
+      // LTI students appear as sessions without a capability token.
+      const ltiSubmissions = await Promise.all(
+        sessions
+          .filter((s) => !tokenStudentIds.has(s.author_id))
+          .map(async (s) => {
+            const author = await identity.getUserById(s.author_id);
+            return { email: author?.email ?? s.author_id, session: await sessionStats(s) };
+          }),
+      );
+
+      res.json({
+        assignment,
+        students,
+        ltiSubmissions,
+        isLti: Boolean(assignment.lti_platform_id),
+        hasNrps: Boolean(assignment.lti_nrps_url),
+      });
     }),
   );
 
@@ -443,6 +465,19 @@ export function createApp(deps: AppDeps): Express {
       res.status(ok ? 200 : 404).json({ deleted: ok });
     }),
   );
+
+  // --- LTI 1.3 endpoints (optional) -----------------------------------------
+  if (deps.lti) {
+    app.use(
+      '/lti',
+      ltiRouter({
+        ltiService: deps.lti.ltiService,
+        ltiStore: deps.lti.ltiStore,
+        identity,
+        store,
+      }),
+    );
+  }
 
   // --- Static client --------------------------------------------------------
   app.use(express.static(publicDir));

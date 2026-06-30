@@ -95,8 +95,48 @@
         </tr>`;
       }
 
+      function ltiRow(s) {
+        const sess = s.session;
+        const stat = sess
+          ? `v${sess.version} · ${sess.entryCount} edits · chain ${
+              sess.chainOk ? '✓ intact' : '✗ BROKEN'
+            } · <a href="/replay.html?session=${sess.sessionId}">replay →</a>`
+          : '<span class="muted">no writing yet</span>';
+        return `<tr><td>${esc(s.email)}</td><td>${stat}</td></tr>`;
+      }
+
       async function renderAssignmentDetail(container, a) {
         const detail = await fetch(`/api/assignments/${a.id}`).then((r) => r.json());
+
+        if (detail.isLti) {
+          // LTI-linked: students arrive via LMS launch, not capability links.
+          const rows = detail.ltiSubmissions.map(ltiRow).join('');
+          container.innerHTML = `
+            <p class="muted">LTI-linked assignment — students join by launching from the LMS.</p>
+            ${
+              detail.hasNrps
+                ? '<div class="inline-form"><button class="roster-sync">Sync roster from LMS</button><span class="roster-status muted"></span></div>'
+                : '<p class="muted">Roster sync becomes available after an instructor launch captures the LMS membership service.</p>'
+            }
+            <table class="students">
+              <thead><tr><th>Student</th><th>Submission</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="2" class="muted">No submissions yet.</td></tr>'}</tbody>
+            </table>`;
+          const syncBtn = container.querySelector('.roster-sync');
+          if (syncBtn) {
+            syncBtn.addEventListener('click', async () => {
+              const statusEl = container.querySelector('.roster-status');
+              statusEl.textContent = ' syncing…';
+              const res = await fetch(`/lti/assignments/${a.id}/roster-sync`, { method: 'POST' });
+              const data = await res.json().catch(() => ({}));
+              statusEl.textContent = res.ok
+                ? ` synced ${data.members?.length ?? 0} member(s)`
+                : ` sync failed: ${data.error || res.status}`;
+            });
+          }
+          return;
+        }
+
         const rows = detail.students.map(studentRow).join('') || '';
         container.innerHTML = `
           <div class="inline-form add-student">

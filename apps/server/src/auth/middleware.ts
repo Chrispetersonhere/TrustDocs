@@ -38,12 +38,17 @@ export function clearSessionCookie(res: Response): void {
   res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
 }
 
-/** The instructor behind the request's cookie, or null. */
-export async function getInstructor(req: Request, identity: IdentityStore): Promise<User | null> {
+/** Any user behind the request's session cookie (instructor or LTI student), or null. */
+export async function getCookieUser(req: Request, identity: IdentityStore): Promise<User | null> {
   const cookies = parseCookies(req.headers.cookie);
   const token = cookies[COOKIE];
   if (!token) return null;
-  const user = await identity.getAuthSession(token);
+  return identity.getAuthSession(token);
+}
+
+/** The instructor behind the request's cookie, or null. */
+export async function getInstructor(req: Request, identity: IdentityStore): Promise<User | null> {
+  const user = await getCookieUser(req, identity);
   return user && user.role === 'instructor' ? user : null;
 }
 
@@ -74,7 +79,7 @@ export async function authorizeSession(
   const session = await deps.store.getSession(sessionId);
   if (!session) return null;
 
-  // Student via capability token: must resolve to THIS session's (student, assignment).
+  // Student via capability token (non-LTI): must resolve to THIS session's pair.
   const tokenStr = getStudentToken(req);
   if (tokenStr) {
     const resolved = await deps.identity.getToken(tokenStr);
@@ -88,12 +93,18 @@ export async function authorizeSession(
     return null; // a presented-but-wrong token is a hard deny
   }
 
-  // Instructor via cookie: must own the assignment. Read-only (instructors never write).
-  const instructor = await getInstructor(req, deps.identity);
-  if (instructor) {
-    const assignment = await deps.identity.getAssignment(session.assignment_id);
-    if (assignment && assignment.instructor_id === instructor.id) {
-      return { principal: 'instructor', canWrite: false, user: instructor };
+  // Cookie principal: an LTI student (the session author) writes; the owning
+  // instructor reads (never writes).
+  const user = await getCookieUser(req, deps.identity);
+  if (user) {
+    if (user.id === session.author_id) {
+      return { principal: 'student', canWrite: true, user };
+    }
+    if (user.role === 'instructor') {
+      const assignment = await deps.identity.getAssignment(session.assignment_id);
+      if (assignment && assignment.instructor_id === user.id) {
+        return { principal: 'instructor', canWrite: false, user };
+      }
     }
   }
 

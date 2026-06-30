@@ -21,6 +21,11 @@ export interface Assignment {
   created_at: string;
   /** Retention window in days, or null to keep indefinitely (build spec §9). */
   retention_days: number | null;
+  /** Set when this assignment is bound to an LTI resource link (M2 LTI path). */
+  lti_platform_id?: string | null;
+  lti_resource_link_id?: string | null;
+  /** NRPS memberships endpoint captured at launch, for roster sync. */
+  lti_nrps_url?: string | null;
 }
 
 export interface AssignmentToken {
@@ -55,9 +60,22 @@ export interface IdentityStore {
     instructor_id: string;
     title: string;
     retention_days: number | null;
+    lti_platform_id?: string | null;
+    lti_resource_link_id?: string | null;
+    lti_nrps_url?: string | null;
   }): Promise<Assignment>;
   getAssignment(id: string): Promise<Assignment | null>;
   listAssignmentsByInstructor(instructorId: string): Promise<Assignment[]>;
+
+  /** Find the assignment bound to an LTI resource link, if any (M2 LTI path). */
+  getAssignmentByResourceLink(
+    platformId: string,
+    resourceLinkId: string,
+  ): Promise<Assignment | null>;
+  /** Reassign ownership (used when a real instructor claims an LTI assignment). */
+  transferAssignmentOwner(assignmentId: string, instructorId: string): Promise<void>;
+  /** Record the NRPS endpoint for an LTI assignment (captured at instructor launch). */
+  setAssignmentNrpsUrl(assignmentId: string, url: string): Promise<void>;
 
   /** Mint (or return the existing) per-student token for an assignment. */
   mintToken(assignmentId: string, studentId: string): Promise<AssignmentToken>;
