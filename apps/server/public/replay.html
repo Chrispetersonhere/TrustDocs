@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scriptorium — Replay</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Scriptorium · Replay</div>
+      <div id="verify-status" class="status" data-kind="ok">Verifying…</div>
+      <nav><a id="edit-link" href="#">← Back to editor</a></nav>
+    </header>
+
+    <main class="replay-shell">
+      <p class="note">
+        This replay reconstructs the document by folding the server’s confirmed edits from
+        the beginning, using the same schema the editor used. It presents
+        <strong>uninterpreted evidence</strong>. It computes no score and asserts no
+        judgment about how the document was written — a human reads the shape.
+      </p>
+
+      <div class="scrubber-row">
+        <label for="scrubber">Replay position</label>
+        <input id="scrubber" type="range" min="0" max="0" value="0" step="1" />
+      </div>
+      <div id="replay-meta" class="meta"></div>
+
+      <div class="replay-cols">
+        <section id="replay-doc" class="replay-doc ProseMirror"></section>
+        <aside id="evidence" class="evidence"></aside>
+      </div>
+
+      <p class="meta">
+        <a id="bundle-link" href="#">⬇ Download self-verifying evidence bundle (JSON)</a>
+      </p>
+    </main>
+
+    <script type="module" src="/assets/replay.js"></script>
+    <script type="module">
+      const s = new URLSearchParams(location.search).get('session');
+      if (s) {
+        document.getElementById('edit-link').href = `/?session=${s}`;
+        document.getElementById('bundle-link').href = `/api/sessions/${s}/bundle`;
+      }
+    </script>
+  </body>
+</html>

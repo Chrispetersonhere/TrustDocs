@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@scriptorium/schema": ["packages/schema/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

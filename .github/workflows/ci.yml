@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (lint)
+        run: pnpm typecheck
+
+      - name: Bundle client
+        run: pnpm build:client
+
+      - name: Test (integrity engine + HTTP slice)
+        run: pnpm test

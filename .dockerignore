@@ -1,0 +1,8 @@
+node_modules
+**/node_modules
+apps/server/public/assets
+.git
+*.log
+.env
+.env.local
+coverage

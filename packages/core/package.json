@@ -1,0 +1,15 @@
+{
+  "name": "@scriptorium/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Integrity engine: canonical JSON, hash chain, the collab authority, document reconstruction, and server-derived evidence. No client time is ever trusted; no verdict is ever computed.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@scriptorium/schema": "workspace:*",
+    "prosemirror-model": "^1.24.1",
+    "prosemirror-transform": "^1.10.2"
+  }
+}
