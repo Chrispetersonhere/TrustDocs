@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scriptorium — Instructor sign in</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Scriptorium</div>
+      <div class="status" data-kind="ok">Instructor</div>
+    </header>
+
+    <main class="auth-shell">
+      <h1 id="title">Sign in</h1>
+      <p class="note">
+        Instructors sign in with email and password. Students do not sign in here — they
+        open their own per-assignment link.
+      </p>
+      <form id="form" class="auth-form">
+        <label>Email <input id="email" type="email" autocomplete="username" required /></label>
+        <label>Password
+          <input id="password" type="password" autocomplete="current-password" minlength="8" required />
+        </label>
+        <button id="submit" type="submit">Sign in</button>
+        <p id="err" class="status" data-kind="err"></p>
+      </form>
+      <p class="meta">
+        <a href="#" id="toggle">Need an account? Register as an instructor →</a>
+      </p>
+    </main>
+
+    <script type="module">
+      const $ = (id) => document.getElementById(id);
+      let mode = 'login';
+      const setMode = (m) => {
+        mode = m;
+        $('title').textContent = m === 'login' ? 'Sign in' : 'Register (instructor)';
+        $('submit').textContent = m === 'login' ? 'Sign in' : 'Create account';
+        $('toggle').textContent =
+          m === 'login'
+            ? 'Need an account? Register as an instructor →'
+            : '← Back to sign in';
+        $('password').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+        $('err').textContent = '';
+      };
+      $('toggle').addEventListener('click', (e) => {
+        e.preventDefault();
+        setMode(mode === 'login' ? 'register' : 'login');
+      });
+
+      $('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        $('err').textContent = '';
+        const body = JSON.stringify({ email: $('email').value, password: $('password').value });
+        const res = await fetch(`/api/auth/${mode}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+        });
+        if (res.ok) {
+          location.href = '/dashboard.html';
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        const messages = {
+          invalid_credentials: 'Email or password is incorrect (password is 8+ characters).',
+          email_taken: 'That email is already registered. Try signing in.',
+        };
+        $('err').textContent = messages[data.error] || `Error: ${data.error || res.status}`;
+      });
+    </script>
+  </body>
+</html>

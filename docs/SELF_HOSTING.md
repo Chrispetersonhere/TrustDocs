@@ -14,14 +14,27 @@ docker compose up --build
 ```
 
 This starts Postgres and the app, applies database migrations automatically on
-startup, and seeds one demo writing session (the M1 hardcoded author + assignment).
+startup, and seeds a demo instructor, assignment, and enrolled student. The startup log
+prints the demo student link.
 
-- **Editor:** `http://localhost:3000/?session=00000000-0000-0000-0000-000000000001`
-- **Replay:** `http://localhost:3000/replay.html?session=00000000-0000-0000-0000-000000000001`
+- **Instructor:** `http://localhost:3000/login.html` — demo account
+  `instructor@example.com` / `demo-password-123` (or register your own). Create an
+  assignment, then add students by email to mint each student's per-assignment link.
+- **Student:** open the per-assignment link, e.g.
+  `http://localhost:3000/?token=…` (printed at startup, or copied from the dashboard).
 
 Type in the editor. The status pill shows "Saved · v<n>" as each batch is confirmed by
-the server. Open the replay in another tab and scrub from version 0 to watch the
-document being built from the server's log alone.
+the server. Open the replay (`…/replay.html?token=…`, or from the dashboard) and scrub
+from version 0 to watch the document being built from the server's log alone.
+
+### Roles
+
+| Principal | How they authenticate | What they can do |
+| --- | --- | --- |
+| Instructor | email + password → httpOnly cookie | Create assignments, enroll students, mint links, **read** any submission they own (never write). |
+| Student | per-assignment capability link (`?token=…`) | Read and write **their own** bound session only. |
+
+Authorization is deny-by-default: a missing or wrong credential gets a 403.
 
 ## 2. Environment variables
 
@@ -109,10 +122,14 @@ cat backup.sql | docker compose exec -T db psql -U scriptorium scriptorium
 After a restore, re-run `pnpm verify --session <id>` for any session you want to
 re-confirm; an intact chain proves the restore did not alter the record.
 
-## 7. What is intentionally not here yet
+## 7. Notes on identity (M2)
 
-Real accounts, per-student/per-assignment links, and the instructor dashboard (M2) are
-the next milestone. The database schema (`users`, `assignments`, `assignment_tokens`,
-the `(assignment_id, author_id)` binding on `writing_sessions`) is already in place; v1
-seeds a single demo identity so the slice is usable end-to-end. See
-[THREAT_MODEL.md](THREAT_MODEL.md) for why identity is a deliberate, separable build.
+Instructor accounts are real (bcrypt-hashed passwords, server-side session cookies).
+Students are identified by their per-assignment capability link, which binds a
+`writing_session` to (student, assignment) unforgeably; the `(assignment_id, author_id)`
+unique constraint guarantees two students cannot collide. See
+[THREAT_MODEL.md](THREAT_MODEL.md) for the rationale behind the capability-link design.
+
+Still ahead (out of v1 scope): LTI 1.3 / Canvas roster sync (the eventual path for
+institutional identity), and student password accounts if a durable cross-assignment
+student login is ever wanted.

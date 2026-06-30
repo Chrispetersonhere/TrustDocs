@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scriptorium — Instructor dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Scriptorium</div>
+      <div id="who" class="context"></div>
+      <nav><a href="#" id="logout">Sign out</a></nav>
+    </header>
+
+    <main class="dash-shell">
+      <p class="note">
+        Create an assignment, then add students by email to generate each student’s
+        unforgeable per-assignment link. Open any submission’s replay to watch how the
+        document was composed. This dashboard shows evidence only — it computes no score
+        or judgment.
+      </p>
+
+      <section class="card">
+        <h2>New assignment</h2>
+        <form id="new-assignment" class="inline-form">
+          <input id="title" type="text" placeholder="Assignment title" required />
+          <input id="retention" type="number" min="1" placeholder="Retention (days, optional)" />
+          <button type="submit">Create</button>
+        </form>
+      </section>
+
+      <section id="assignments"></section>
+    </main>
+
+    <script type="module">
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) =>
+        String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+      async function me() {
+        const r = await fetch('/api/auth/me');
+        if (!r.ok) {
+          location.href = '/login.html';
+          return null;
+        }
+        return (await r.json()).user;
+      }
+
+      $('logout').addEventListener('click', async (e) => {
+        e.preventDefault();
+        await fetch('/api/auth/logout', { method: 'POST' });
+        location.href = '/login.html';
+      });
+
+      $('new-assignment').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = $('title').value.trim();
+        const retentionRaw = $('retention').value;
+        const body = { title };
+        if (retentionRaw) body.retention_days = Number(retentionRaw);
+        const r = await fetch('/api/assignments', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (r.ok) {
+          $('title').value = '';
+          $('retention').value = '';
+          render();
+        }
+      });
+
+      async function addStudent(assignmentId, email) {
+        const r = await fetch(`/api/assignments/${assignmentId}/students`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        return r.ok ? r.json() : null;
+      }
+
+      function studentRow(s) {
+        const url = location.origin + s.link;
+        const sess = s.session;
+        const stat = sess
+          ? `v${sess.version} · ${sess.entryCount} edits · chain ${
+              sess.chainOk ? '✓ intact' : '✗ BROKEN'
+            } · <a href="/replay.html?session=${sess.sessionId}">replay →</a>`
+          : '<span class="muted">no writing yet</span>';
+        return `<tr>
+          <td>${esc(s.email)}</td>
+          <td><input class="link" readonly value="${esc(url)}" onclick="this.select()" /></td>
+          <td>${stat}</td>
+        </tr>`;
+      }
+
+      async function renderAssignmentDetail(container, a) {
+        const detail = await fetch(`/api/assignments/${a.id}`).then((r) => r.json());
+        const rows = detail.students.map(studentRow).join('') || '';
+        container.innerHTML = `
+          <div class="inline-form add-student">
+            <input type="email" placeholder="student@example.com" />
+            <button>Add student</button>
+          </div>
+          <table class="students">
+            <thead><tr><th>Student</th><th>Per-assignment link</th><th>Submission</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="3" class="muted">No students yet.</td></tr>'}</tbody>
+          </table>`;
+        const form = container.querySelector('.add-student');
+        const input = form.querySelector('input');
+        form.querySelector('button').addEventListener('click', async () => {
+          if (!input.value) return;
+          const res = await addStudent(a.id, input.value);
+          if (res) renderAssignmentDetail(container, a);
+          else alert('Could not add that student.');
+        });
+      }
+
+      async function render() {
+        const { assignments } = await fetch('/api/assignments').then((r) => r.json());
+        const root = $('assignments');
+        root.innerHTML = '';
+        if (!assignments.length) {
+          root.innerHTML = '<p class="muted">No assignments yet. Create one above.</p>';
+          return;
+        }
+        for (const a of assignments) {
+          const card = document.createElement('section');
+          card.className = 'card';
+          card.innerHTML = `<h2>${esc(a.title)} <small class="muted">${a.sessionCount} submission(s)${
+            a.retention_days ? ` · retention ${a.retention_days}d` : ''
+          }</small></h2><div class="detail"></div>`;
+          root.appendChild(card);
+          renderAssignmentDetail(card.querySelector('.detail'), a);
+        }
+      }
+
+      (async () => {
+        const user = await me();
+        if (!user) return;
+        $('who').textContent = user.email;
+        render();
+      })();
+    </script>
+  </body>
+</html>

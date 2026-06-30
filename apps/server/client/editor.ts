@@ -1,9 +1,11 @@
 /**
- * The student editor (build spec §5, §6).
+ * The student editor (build spec §5, §6, §9).
  *
- * ProseMirror core + prosemirror-collab. Steps are submitted EAGERLY in small
- * batches so the server's receipt time tracks authorship closely (connectivity
- * is required in v1). The editor imports the SAME shared schema the server uses.
+ * ProseMirror core + prosemirror-collab. The student arrives via their
+ * per-assignment capability link (/?token=...). The token is exchanged for the
+ * writing_session unforgeably bound to (student, assignment) and then sent as a
+ * bearer credential on every request. The editor imports the SAME shared schema
+ * the server uses.
  *
  * The client is never trusted for time or final state: it only proposes steps;
  * the server orders, stamps, and reconstructs.
@@ -20,18 +22,16 @@ import { exampleSetup } from 'prosemirror-example-setup';
 import { schema } from '@scriptorium/schema';
 
 const params = new URLSearchParams(location.search);
-const sessionId = params.get('session');
+const token = params.get('token');
 const clientID = Math.floor(Math.random() * 0xffffffff);
 
 const statusEl = document.getElementById('status')!;
+const ctxEl = document.getElementById('context');
 const setStatus = (msg: string, kind: 'ok' | 'warn' | 'err' = 'ok') => {
   statusEl.textContent = msg;
   statusEl.dataset.kind = kind;
 };
 
-// Paste detection: a purely client-asserted, UNTRUSTED annotation (build spec §8).
-// We set a flag when a paste happens; the next submitted batch carries it in
-// client_meta. The server marks it untrusted and never derives timing from it.
 let pendingClientPaste = false;
 const pastePlugin = new Plugin({
   props: {
@@ -44,33 +44,46 @@ const pastePlugin = new Plugin({
   },
 });
 
+function authHeaders(): Record<string, string> {
+  return { 'content-type': 'application/json', authorization: `Bearer ${token}` };
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { 'content-type': 'application/json' },
-    ...init,
-  });
+  const res = await fetch(path, { headers: authHeaders(), ...init });
   if (!res.ok && res.status !== 409) throw new Error(`${path} -> ${res.status}`);
   return (await res.json()) as T;
 }
 
 async function start() {
-  if (!sessionId) {
-    setStatus('No ?session= in URL', 'err');
+  if (!token) {
+    setStatus('This editor opens from your per-assignment link (…/?token=…).', 'err');
     return;
   }
 
-  const initial = await api<{ version: number; doc: unknown }>(
-    `/api/sessions/${sessionId}/doc`,
-  );
-  const doc = PMNode.fromJSON(schema, initial.doc as object);
+  // Exchange the capability token for the bound writing session.
+  const redeemed = await api<{
+    sessionId: string;
+    assignmentTitle: string;
+    studentEmail: string;
+    version: number;
+    doc: unknown;
+  }>('/api/session', { method: 'POST', body: JSON.stringify({ token }) });
 
+  const sessionId = redeemed.sessionId;
+  if (ctxEl) {
+    ctxEl.textContent = `${redeemed.assignmentTitle} · ${redeemed.studentEmail}`;
+  }
+  const replayLink = document.getElementById('replay-link') as HTMLAnchorElement | null;
+  if (replayLink) replayLink.href = `/replay.html?token=${token}`;
+
+  const doc = PMNode.fromJSON(schema, redeemed.doc as object);
   let inFlight = false;
 
   const state = EditorState.create({
     doc,
     plugins: [
       ...exampleSetup({ schema, history: false }),
-      collab({ version: initial.version, clientID }),
+      collab({ version: redeemed.version, clientID }),
       pastePlugin,
     ],
   });
@@ -78,8 +91,7 @@ async function start() {
   const view = new EditorView(document.getElementById('editor'), {
     state,
     dispatchTransaction(tr) {
-      const newState = view.state.apply(tr);
-      view.updateState(newState);
+      view.updateState(view.state.apply(tr));
       void sync();
     },
   });
@@ -118,7 +130,6 @@ async function start() {
         view.updateState(view.state.apply(tr));
         setStatus(`Saved · v${outcome.version}`, 'ok');
       } else if (outcome.status === 'stale') {
-        // Another batch landed first; pull events, apply, and the next sync rebases.
         const events = await api<{ version: number; steps: unknown[] }>(
           `/api/sessions/${sessionId}/events?since=${getVersion(view.state)}`,
         );
@@ -137,11 +148,9 @@ async function start() {
       }
     } catch (err) {
       setStatus(`Offline — retrying. (${String(err)})`, 'err');
-      // v1 requires connectivity; retry shortly so steps land in order.
       setTimeout(() => void sync(), 1500);
     } finally {
       inFlight = false;
-      // Drain anything queued while we were sending.
       if (sendableSteps(view.state)) void sync();
     }
   }

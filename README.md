@@ -82,9 +82,16 @@ entry after it, and nowhere before.
 
 ```bash
 docker compose up --build
-# Editor:  http://localhost:3000/?session=00000000-0000-0000-0000-000000000001
-# Replay:  http://localhost:3000/replay.html?session=00000000-0000-0000-0000-000000000001
 ```
+
+Then:
+
+- **Instructor:** sign in at `http://localhost:3000/login.html` (demo account
+  `instructor@example.com` / `demo-password-123`, or register your own), create an
+  assignment, and add students by email to mint each student's per-assignment link.
+- **Student:** open the per-assignment link (the server prints a demo one at startup,
+  e.g. `http://localhost:3000/?token=…`). Typing is captured live; the replay is at
+  `…/replay.html?token=…`.
 
 ### Local (no database — in-memory, for trying the slice)
 
@@ -125,13 +132,30 @@ pnpm verify --session <id>     # verify a live session from the DB
 pnpm retention [--apply]       # purge sessions past their retention window
 ```
 
+## Identity model (M2)
+
+- **Instructors** are real password accounts (bcrypt-hashed), with an httpOnly
+  server-side session cookie. They create assignments and enroll students by email.
+- **Students** authenticate by a **per-assignment capability link** (`/?token=…`). The
+  token is the credential: opening it establishes the `writing_session` unforgeably
+  bound to (student, assignment), and the student sends it as a bearer token on every
+  request. No student passwords — lowest friction, and each token grants access to
+  exactly one (student, assignment) session.
+- Authorization is **deny-by-default**: the bound student may read and write their own
+  session; the owning instructor may read it (never write); nobody else sees it.
+
+The instructor **dashboard** (`/dashboard.html`) lists assignments and, per assignment,
+each enrolled student with their link and live submission stats (version, edit count,
+chain-intact status, and a link to the replay).
+
 ## Status against the milestones
 
 - **M0 Scaffold** — monorepo, shared schema, Docker Compose, migrations, CI, health check. ✅
 - **M1 Vertical slice** (the first hard deliverable) — eager collab capture, server authority, hash-chained append-only log, replay. ✅
+- **M2 Identity & assignments** — real instructor accounts + roles, per-student/per-assignment capability links, unforgeably-bound writing sessions, instructor dashboard. ✅
 - **M3 (server-side evidence)** — large-insertion timeline (server-derived + clearly-labeled client-asserted) and receipt-based active time. ✅
 - **M4 Integrity & privacy** — verification endpoint + CLI, tamper test (incl. DB-level), append-only DB trigger, retention + hard-delete, self-verifying export bundle, deploy docs. ✅
-- **M2 Identity** (real accounts, per-student links, dashboard) — schema + seam in place; full auth UI is the next milestone. ◻️ (intentionally deferred — see docs/THREAT_MODEL.md)
 
-Every constraint in the Definition of Done that this slice covers is enforced by a
-test in `packages/core/test` and `apps/server/test`.
+Every constraint in the Definition of Done that these milestones cover is enforced by a
+test in `packages/core/test` and `apps/server/test`, and the full editor → dashboard →
+replay flow is exercised in a real browser.

@@ -24,7 +24,16 @@ interface Entry {
 }
 
 const params = new URLSearchParams(location.search);
-const sessionId = params.get('session');
+const token = params.get('token');
+let sessionId = params.get('session');
+
+/** Student requests carry a bearer token; instructor requests carry the cookie. */
+function authHeaders(): Record<string, string> {
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+function apiGet(path: string) {
+  return fetch(path, { headers: authHeaders(), credentials: 'same-origin' });
+}
 
 const slider = document.getElementById('scrubber') as HTMLInputElement;
 const docEl = document.getElementById('replay-doc')!;
@@ -58,14 +67,35 @@ function render(doc: PMNode) {
 }
 
 async function main() {
+  // A student arrives with a capability token; exchange it for their session id.
+  if (token && !sessionId) {
+    const redeemed = await fetch('/api/session', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }).then((r) => r.json() as Promise<{ sessionId: string }>);
+    sessionId = redeemed.sessionId;
+  }
   if (!sessionId) {
-    metaEl.textContent = 'No ?session= in URL';
+    metaEl.textContent = 'Open this page from your link (?token=…) or an instructor session URL.';
     return;
   }
+  const bundleLink = document.getElementById('bundle-link') as HTMLAnchorElement | null;
+  if (bundleLink) {
+    bundleLink.href = token
+      ? `/api/sessions/${sessionId}/bundle?token=${token}`
+      : `/api/sessions/${sessionId}/bundle`;
+  }
 
-  const { session, entries } = await fetch(`/api/sessions/${sessionId}/log`).then(
-    (r) => r.json() as Promise<{ session: unknown; entries: Entry[] }>,
-  );
+  const res = await apiGet(`/api/sessions/${sessionId}/log`);
+  if (!res.ok) {
+    metaEl.textContent =
+      res.status === 401 || res.status === 403
+        ? 'Not authorized to view this session.'
+        : `Could not load session (${res.status}).`;
+    return;
+  }
+  const { session, entries } = (await res.json()) as { session: unknown; entries: Entry[] };
   void session;
 
   const states = buildStates(entries);
@@ -87,14 +117,14 @@ async function main() {
   update();
 
   // Verification badge (recomputed from genesis, server-side).
-  const v = await fetch(`/api/sessions/${sessionId}/verify`).then((r) => r.json());
+  const v = await apiGet(`/api/sessions/${sessionId}/verify`).then((r) => r.json());
   verifyEl.textContent = v.ok
     ? `Chain intact — all ${v.verifiedCount} entries verify from genesis.`
     : `Chain BROKEN at entry ${v.firstDivergenceIndex}: ${v.message}`;
   verifyEl.dataset.kind = v.ok ? 'ok' : 'err';
 
   // Evidence panel: server-derived signals only, with explicit disclaimer.
-  const ev = await fetch(`/api/sessions/${sessionId}/evidence`).then((r) => r.json());
+  const ev = await apiGet(`/api/sessions/${sessionId}/evidence`).then((r) => r.json());
   renderEvidence(ev);
 }
 

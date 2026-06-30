@@ -67,16 +67,32 @@ verdict, probability, classification, or "cheating" flag. The evidence endpoint 
 explicit disclaimer and surfaces only: server-derived large insertions, receipt-based
 active time, and clearly-labeled untrusted client annotations.
 
-## Why identity (M2) is deferred but designed-for
+## Identity (M2): the capability-link design
 
-"A student wrote this" presupposes knowing *which* student, so identity is genuinely
-in-scope for a complete v1 (build spec §9). It is deferred here because real accounts,
-per-student/per-assignment links, and the dashboard are a multi-week build of their
-own, and the spec sequences the **integrity invariant** first (M1 is the first hard
-deliverable; it hardcodes one author + assignment). The database schema already models
-the eventual identity (`users`, `assignments`, `assignment_tokens`, and the unforgeable
-`(assignment_id, author_id)` binding on `writing_sessions`), so M2 adds auth and link
-issuance without reshaping the record.
+"A student wrote this" presupposes knowing *which* student (build spec §9). Identity is
+built:
+
+- **Instructors** hold real accounts — bcrypt-hashed passwords, an opaque httpOnly
+  server-side session token. They create assignments and enroll students.
+- **Students** authenticate by a **per-assignment capability link** (`?token=…`). The
+  token *is* the credential: presenting it establishes (or re-opens) the
+  `writing_session` unforgeably bound to (student, assignment), and the student carries
+  it as a bearer token. There are no student passwords.
+
+Why capability links rather than student passwords? They match the spec's
+"per-student, per-assignment link/token" wording, add no password-reset/credential
+surface, and make the binding explicit: one token → exactly one (student, assignment)
+session. The `assignment_tokens` UNIQUE(assignment_id, student_id) and
+`writing_sessions` UNIQUE(assignment_id, author_id) constraints guarantee two students
+cannot collide. The trade-off — a link is a bearer secret, so treat it like one (it
+should be delivered over a private channel; anyone holding it can write as that student
+for that assignment) — is the standard capability-URL trade-off and is the natural place
+a future LTI 1.3 / SSO integration would tighten by deriving the binding from an
+authenticated roster instead of a shared link.
+
+Authorization is deny-by-default everywhere: the bound student may read and write their
+own session; the owning instructor may read it (never write); every other request gets
+a 403.
 
 ## If you change anything here
 

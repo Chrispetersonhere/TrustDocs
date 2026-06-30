@@ -39,11 +39,13 @@
 
     <script type="module" src="/assets/replay.js"></script>
     <script type="module">
-      const s = new URLSearchParams(location.search).get('session');
-      if (s) {
-        document.getElementById('edit-link').href = `/?session=${s}`;
-        document.getElementById('bundle-link').href = `/api/sessions/${s}/bundle`;
-      }
+      // The bundle link and the back-to-editor link are wired by replay.js once
+      // the session id is known (from a student token or an instructor session URL).
+      const p = new URLSearchParams(location.search);
+      const t = p.get('token');
+      const editLink = document.getElementById('edit-link');
+      if (t) editLink.href = `/?token=${t}`;
+      else editLink.style.display = 'none';
     </script>
   </body>
 </html>

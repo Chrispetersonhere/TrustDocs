@@ -10,6 +10,7 @@
   <body>
     <header class="topbar">
       <div class="brand">Scriptorium</div>
+      <div id="context" class="context"></div>
       <div id="status" class="status" data-kind="ok">Loading…</div>
       <nav><a id="replay-link" href="#">Open replay →</a></nav>
     </header>
@@ -24,9 +25,5 @@
     </main>
 
     <script type="module" src="/assets/editor.js"></script>
-    <script type="module">
-      const s = new URLSearchParams(location.search).get('session');
-      if (s) document.getElementById('replay-link').href = `/replay.html?session=${s}`;
-    </script>
   </body>
 </html>
